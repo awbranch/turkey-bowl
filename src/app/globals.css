@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cranberry: #9f1d35;
+  --color-pumpkin: #e07a1f;
+  --color-harvest: #f3c969;
+  --color-bark: #3b2a1e;
+  --color-cream: #fdf6ec;
+}
+
+html,
+body {
+  background: var(--color-cream);
+  color: var(--color-bark);
+}
+
+/* iPad/phone friendliness: no double-tap zoom delays on buttons, no text selection on keypads */
+button {
+  touch-action: manipulation;
+}
