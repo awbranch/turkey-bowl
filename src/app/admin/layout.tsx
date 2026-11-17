@@ -7,7 +7,7 @@ import { NavLink } from "./NavLink";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
-  const db = getDb();
+  const db = await getDb();
   const event = await getCurrentEvent(db);
   const rounds = event ? await getRounds(db, event.id) : [];
 

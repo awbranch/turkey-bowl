@@ -8,7 +8,7 @@ import { CreateEventForm, EventSettingsForm } from "./EventForms";
 import { RoundsList } from "./RoundsList";
 
 export default async function AdminHome() {
-  const db = getDb();
+  const db = await getDb();
   const event = await getCurrentEvent(db);
   const thisYear = new Date().getFullYear();
 

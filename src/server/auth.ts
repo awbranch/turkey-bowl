@@ -6,8 +6,8 @@ import { passcodeMatches, signSession, verifySession } from "@/lib/session";
 const COOKIE = "tb_admin";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 4; // a few days covers setup through the ceremony
 
-function secrets() {
-  const { env } = getCloudflareContext();
+async function secrets() {
+  const { env } = await getCloudflareContext({ async: true });
   if (!env.SESSION_SECRET || !env.ADMIN_PASSCODE) {
     throw new Error("ADMIN_PASSCODE and SESSION_SECRET must be set (.dev.vars locally, wrangler secrets in production)");
   }
@@ -15,7 +15,7 @@ function secrets() {
 }
 
 export async function isAdmin(): Promise<boolean> {
-  const { secret } = secrets();
+  const { secret } = await secrets();
   const store = await cookies();
   return verifySession(secret, store.get(COOKIE)?.value);
 }
@@ -26,7 +26,7 @@ export async function requireAdmin(): Promise<void> {
 }
 
 export async function logIn(submitted: string): Promise<boolean> {
-  const { secret, passcode } = secrets();
+  const { secret, passcode } = await secrets();
   if (!(await passcodeMatches(secret, submitted.trim(), passcode))) return false;
   const expiresAt = Date.now() + MAX_AGE_SECONDS * 1000;
   const store = await cookies();

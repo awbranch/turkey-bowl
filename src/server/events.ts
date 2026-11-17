@@ -111,3 +111,72 @@ export async function getRoundSummaries(db: Db, eventId: number) {
     assignedCount: memberCounts.find((m) => m.roundId === r.id)?.count ?? 0,
   }));
 }
+
+// ---------- Round lifecycle ----------
+
+/** Every bowler on a team in the round, with whether their game is complete and how far along it is. */
+export async function getRoundProgress(db: Db, roundId: number) {
+  const rows = await db
+    .select({
+      personId: teamMembers.personId,
+      name: people.name,
+      nickname: people.nickname,
+      teamId: teamMembers.teamId,
+      complete: games.complete,
+      score: games.score,
+      rolls: games.rolls,
+    })
+    .from(teamMembers)
+    .innerJoin(people, eq(teamMembers.personId, people.id))
+    .leftJoin(games, and(eq(games.roundId, teamMembers.roundId), eq(games.personId, teamMembers.personId)))
+    .where(eq(teamMembers.roundId, roundId));
+  return rows.map((r) => ({ ...r, complete: r.complete ?? false, score: r.score ?? 0, rolls: r.rolls ?? [] }));
+}
+
+export async function getBowlingRound(db: Db, eventId: number): Promise<Round | undefined> {
+  const [row] = await db
+    .select()
+    .from(rounds)
+    .where(and(eq(rounds.eventId, eventId), eq(rounds.status, "bowling")))
+    .orderBy(asc(rounds.number))
+    .limit(1);
+  return row;
+}
+
+/** Open a round for scoring. Only one round bowls at a time. */
+export async function startRound(db: Db, eventId: number, number: number): Promise<{ error?: string }> {
+  const round = await getRound(db, eventId, number);
+  if (!round) return { error: "Round not found." };
+  const bowling = await getBowlingRound(db, eventId);
+  if (bowling && bowling.id !== round.id) return { error: `Finish round ${bowling.number} first.` };
+  const [team] = await db.select({ id: teams.id }).from(teams).where(eq(teams.roundId, round.id)).limit(1);
+  if (!team) return { error: "Set up teams before starting the round." };
+  await db.batch([
+    db.update(rounds).set({ status: "bowling" }).where(eq(rounds.id, round.id)),
+    db.update(events).set({ status: "live" }).where(and(eq(events.id, eventId), eq(events.status, "setup"))),
+  ]);
+  return {};
+}
+
+/** Close a round. Every bowler on a team must have a complete game. */
+export async function finishRound(db: Db, eventId: number, number: number): Promise<{ error?: string }> {
+  const round = await getRound(db, eventId, number);
+  if (!round) return { error: "Round not found." };
+  const unfinished = (await getRoundProgress(db, round.id)).filter((p) => !p.complete);
+  if (unfinished.length) {
+    const names = unfinished.map((p) => p.nickname || p.name).join(", ");
+    return { error: `Still bowling: ${names}.` };
+  }
+  await db.update(rounds).set({ status: "done" }).where(eq(rounds.id, round.id));
+  return {};
+}
+
+/** Reopen a finished round (e.g. to fix a score). */
+export async function reopenRound(db: Db, eventId: number, number: number): Promise<{ error?: string }> {
+  const round = await getRound(db, eventId, number);
+  if (!round) return { error: "Round not found." };
+  const bowling = await getBowlingRound(db, eventId);
+  if (bowling && bowling.id !== round.id) return { error: `Finish round ${bowling.number} first.` };
+  await db.update(rounds).set({ status: "bowling" }).where(eq(rounds.id, round.id));
+  return {};
+}

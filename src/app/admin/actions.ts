@@ -181,3 +181,20 @@ export async function shuffleTeamsAction(roundNumber: number, teamCount: number)
   const count = z.number().int().min(1).max(8).parse(teamCount);
   return done(await teamsDb.shuffleTeams(db, event.id, roundNumber, count));
 }
+
+// ---------- Round lifecycle ----------
+
+export async function startRoundAction(roundNumber: number): Promise<ActionResult> {
+  const { db, event } = await currentEvent();
+  return done(await eventsDb.startRound(db, event.id, roundNumber));
+}
+
+export async function finishRoundAction(roundNumber: number): Promise<ActionResult> {
+  const { db, event } = await currentEvent();
+  return done(await eventsDb.finishRound(db, event.id, roundNumber));
+}
+
+export async function reopenRoundAction(roundNumber: number): Promise<ActionResult> {
+  const { db, event } = await currentEvent();
+  return done(await eventsDb.reopenRound(db, event.id, roundNumber));
+}

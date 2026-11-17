@@ -7,7 +7,7 @@ import { PersonForm } from "./PersonForm";
 import { PersonRow } from "./PersonRow";
 
 export default async function PeoplePage() {
-  const db = getDb();
+  const db = await getDb();
   const [people, event] = await Promise.all([listPeople(db), getCurrentEvent(db)]);
 
   return (
